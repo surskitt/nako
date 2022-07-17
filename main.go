@@ -19,7 +19,7 @@ type Options struct {
 	Server   string   `short:"s" long:"server" env:"NAKO_SERVER" required:"true" description:"IRC server:port"`
 	Nick     string   `short:"n" long:"nick" env:"NAKO_NICK" required:"true" description:"IRC nick"`
 	User     string   `short:"u" long:"user" env:"NAKO_USER" required:"true" description:"IRC user"`
-	Password string   `short:"p" long:"password" env:"NAKO_PASSWORD" required:"true" description:"IRC password"`
+	Password string   `short:"p" long:"password" env:"NAKO_PASSWORD" description:"IRC password"`
 	Channels []string `short:"c" long:"channels" env:"NAKO_CHANNELS" env-delim:"," required:"true" description:"Channels to join"`
 	UseTLS   bool     `short:"T" long:"tls" env:"NAKO_TLS" description:"Connect to irc using tls"`
 	Verbose  bool     `short:"v" long:"verbose" env:"NAKO_VERBOSE" description:"Verbose logging"`
@@ -147,7 +147,9 @@ func main() {
 		}
 	}
 
-	irccon.Password = opts.Password
+	if opts.Password != "" {
+		irccon.Password = opts.Password
+	}
 	irccon.AddCallback("PRIVMSG", genMsgHandler(opts.Channels[0], g))
 
 	retrier := retry.NewRetrier(5, 100*time.Millisecond, 5*time.Second)
@@ -158,7 +160,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	irccon.Join(opts.Channels[0])
+	irccon.AddCallback("001", func(e *irc.Event) {
+		irccon.Join(opts.Channels[0])
+	})
 
 	go irccon.Loop()
 
