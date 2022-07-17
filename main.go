@@ -104,30 +104,47 @@ func genDebugHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 	}
 }
 
-func layout(g *gocui.Gui) error {
-	maxX, maxY := g.Size()
+func genLayout(channel string) func(g *gocui.Gui) error {
+	return func(g *gocui.Gui) error {
+		maxX, maxY := g.Size()
 
-	if v, err := g.SetView("chat", 0, 0, maxX, maxY-2, gocui.TOP); err != nil {
-		if !errors.Is(err, gocui.ErrUnknownView) {
-			return err
+		if v, err := g.SetView("chat", 0, 0, maxX, maxY-2, gocui.TOP); err != nil {
+			if !errors.Is(err, gocui.ErrUnknownView) {
+				return err
+			}
+
+			v.Autoscroll = true
+			v.Wrap = true
+			v.Frame = false
 		}
 
-		v.Autoscroll = true
-		v.Wrap = true
-		v.Frame = false
-	}
+		if v, err := g.SetView("channel", 0, maxY-2, len(channel)+2, maxY, gocui.TOP); err != nil {
+			if !errors.Is(err, gocui.ErrUnknownView) {
+				return err
+			}
 
-	if v, err := g.SetView("entry", 0, maxY-2, maxX, maxY, gocui.TOP); err != nil {
-		v.Frame = false
-		v.Editable = true
-		v.Wrap = true
+			v.Frame = false
+			v.FgColor = gocui.ColorGreen
 
-		if _, err := g.SetCurrentView("entry"); err != nil {
-			return err
+			fmt.Fprint(v, channel+">")
 		}
-	}
 
-	return nil
+		if v, err := g.SetView("entry", len(channel)+2, maxY-2, maxX, maxY, gocui.TOP); err != nil {
+			if !errors.Is(err, gocui.ErrUnknownView) {
+				return err
+			}
+
+			v.Frame = false
+			v.Editable = true
+			v.Wrap = true
+
+			if _, err := g.SetCurrentView("entry"); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 }
 
 func quit(g *gocui.Gui, v *gocui.View) error {
@@ -191,7 +208,7 @@ func main() {
 	g.SelFgColor = gocui.ColorGreen
 	g.SelFrameColor = gocui.ColorGreen
 
-	g.SetManagerFunc(layout)
+	g.SetManagerFunc(genLayout(opts.Channels[0]))
 
 	irccon := irc.IRC(opts.Nick, opts.User)
 	irccon.Debug = opts.Debug
