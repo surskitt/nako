@@ -44,7 +44,12 @@ func genMsgHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 						return err
 					}
 
-					fmt.Fprintln(v, fmt.Sprintf("%s %s: %s", getTime(), event.Nick, event.Arguments[1]))
+					nick := event.Nick
+					if nick == "" {
+						nick = event.Source
+					}
+
+					fmt.Fprintln(v, fmt.Sprintf("%s %s: %s", getTime(), nick, event.Arguments[1]))
 
 					return nil
 				})
@@ -90,7 +95,7 @@ func genDebugHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 
 					fmt.Fprintln(v, fmt.Sprintf("%s Code: %s", getTime(), event.Code))
 					fmt.Fprintln(v, fmt.Sprintf("%s Raw: %s", getTime(), event.Raw))
-					fmt.Fprintln(v, fmt.Sprintf("%s Nick: %s", getTime(), event.Source))
+					fmt.Fprintln(v, fmt.Sprintf("%s Nick: %s", getTime(), event.Nick))
 					fmt.Fprintln(v, fmt.Sprintf("%s Host: %s", getTime(), event.Host))
 					fmt.Fprintln(v, fmt.Sprintf("%s Source: %s", getTime(), event.Source))
 					fmt.Fprintln(v, fmt.Sprintf("%s User: %s", getTime(), event.User))
