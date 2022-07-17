@@ -146,6 +146,10 @@ func genSwitch(view string) func(g *gocui.Gui, v *gocui.View) error {
 
 func genSendMsg(c *irc.Connection, nick, channel string) func(g *gocui.Gui, v *gocui.View) error {
 	return func(g *gocui.Gui, v *gocui.View) error {
+		if v.Buffer() == "" {
+			return nil
+		}
+
 		msg := v.Buffer() + " "
 		c.Privmsg(channel, msg)
 		v.Clear()
