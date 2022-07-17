@@ -68,6 +68,7 @@ func layout(g *gocui.Gui) error {
 	if v, err := g.SetView("entry", 0, maxY-2, maxX, maxY, gocui.TOP); err != nil {
 		v.Frame = false
 		v.Editable = true
+		v.Wrap = true
 
 		if _, err := g.SetCurrentView("entry"); err != nil {
 			return err
