@@ -150,6 +150,7 @@ func main() {
 	if opts.Password != "" {
 		irccon.Password = opts.Password
 	}
+
 	irccon.AddCallback("PRIVMSG", genMsgHandler(opts.Channels[0], g))
 
 	retrier := retry.NewRetrier(5, 100*time.Millisecond, 5*time.Second)
@@ -157,7 +158,7 @@ func main() {
 		return irccon.Connect(opts.Server)
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 
 	irccon.AddCallback("001", func(e *irc.Event) {
