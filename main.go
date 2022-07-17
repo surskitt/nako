@@ -221,9 +221,7 @@ func main() {
 		}
 	}
 
-	if opts.Password != "" {
-		irccon.Password = opts.Password
-	}
+	irccon.Password = opts.Password
 
 	irccon.AddCallback("PRIVMSG", genMsgHandler(opts.Channels[0], g))
 
