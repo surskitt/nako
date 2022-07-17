@@ -16,14 +16,15 @@ import (
 )
 
 type Options struct {
-	Server   string   `short:"s" long:"server" env:"NAKO_SERVER" required:"true" description:"IRC server:port"`
-	Nick     string   `short:"n" long:"nick" env:"NAKO_NICK" required:"true" description:"IRC nick"`
-	User     string   `short:"u" long:"user" env:"NAKO_USER" required:"true" description:"IRC user"`
-	Password string   `short:"p" long:"password" env:"NAKO_PASSWORD" description:"IRC password"`
-	Channels []string `short:"c" long:"channels" env:"NAKO_CHANNELS" env-delim:"," required:"true" description:"Channels to join"`
-	UseTLS   bool     `short:"T" long:"tls" env:"NAKO_TLS" description:"Connect to irc using tls"`
-	Verbose  bool     `short:"v" long:"verbose" env:"NAKO_VERBOSE" description:"Verbose logging"`
-	Debug    bool     `short:"d" long:"debug" env:"NAKO_DEBUG" description:"Debug logging"`
+	Server    string   `short:"s" long:"server" env:"NAKO_SERVER" required:"true" description:"IRC server:port"`
+	Nick      string   `short:"n" long:"nick" env:"NAKO_NICK" required:"true" description:"IRC nick"`
+	User      string   `short:"u" long:"user" env:"NAKO_USER" required:"true" description:"IRC user"`
+	Password  string   `short:"p" long:"password" env:"NAKO_PASSWORD" description:"IRC password"`
+	Channels  []string `short:"c" long:"channels" env:"NAKO_CHANNELS" env-delim:"," required:"true" description:"Channels to join"`
+	UseTLS    bool     `short:"T" long:"tls" env:"NAKO_TLS" description:"Connect to irc using tls"`
+	Verbose   bool     `short:"v" long:"verbose" env:"NAKO_VERBOSE" description:"Verbose logging"`
+	Debug     bool     `short:"d" long:"debug" env:"NAKO_DEBUG" description:"Debug logging"`
+	ShowJoins bool     `short:"j" long:"show-joins" env:"NAKO_SHOW_JOINS" description:"Show join and part messages"`
 }
 
 func getTime() string {
@@ -44,6 +45,57 @@ func genMsgHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 					}
 
 					fmt.Fprintln(v, fmt.Sprintf("%s %s: %s", getTime(), event.Nick, event.Arguments[1]))
+
+					return nil
+				})
+			}
+		}(event)
+	}
+}
+
+func genJoinHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
+	return func(event *irc.Event) {
+		go func(event *irc.Event) {
+			if event.Arguments[0] == channel {
+				g.Update(func(g *gocui.Gui) error {
+					v, err := g.View("chat")
+					if err != nil {
+						return err
+					}
+
+					switch event.Code {
+					case "JOIN":
+						fmt.Fprintln(v, fmt.Sprintf("%s -> %s joined %s", getTime(), event.Nick, event.Arguments[0]))
+					case "QUIT":
+						fmt.Fprintln(v, fmt.Sprintf("%s <- %s left %s", getTime(), event.Nick, event.Arguments[0]))
+					}
+
+					return nil
+				})
+			}
+		}(event)
+	}
+}
+
+func genDebugHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
+	return func(event *irc.Event) {
+		go func(event *irc.Event) {
+			// if event.Arguments[0] == channel {
+			if true {
+				g.Update(func(g *gocui.Gui) error {
+					v, err := g.View("chat")
+					if err != nil {
+						return err
+					}
+
+					fmt.Fprintln(v, fmt.Sprintf("%s Code: %s", getTime(), event.Code))
+					fmt.Fprintln(v, fmt.Sprintf("%s Raw: %s", getTime(), event.Raw))
+					fmt.Fprintln(v, fmt.Sprintf("%s Nick: %s", getTime(), event.Source))
+					fmt.Fprintln(v, fmt.Sprintf("%s Host: %s", getTime(), event.Host))
+					fmt.Fprintln(v, fmt.Sprintf("%s Source: %s", getTime(), event.Source))
+					fmt.Fprintln(v, fmt.Sprintf("%s User: %s", getTime(), event.User))
+					fmt.Fprintln(v, fmt.Sprintf("%s Tags: %s", getTime(), event.Tags))
+					fmt.Fprintln(v, fmt.Sprintf("%s Arguments: %s", getTime(), event.Arguments))
 
 					return nil
 				})
@@ -153,6 +205,15 @@ func main() {
 	}
 
 	irccon.AddCallback("PRIVMSG", genMsgHandler(opts.Channels[0], g))
+
+	if opts.ShowJoins {
+		irccon.AddCallback("JOIN", genJoinHandler(opts.Channels[0], g))
+		irccon.AddCallback("PART", genJoinHandler(opts.Channels[0], g))
+	}
+
+	if opts.Verbose {
+		irccon.AddCallback("*", genDebugHandler(opts.Channels[0], g))
+	}
 
 	retrier := retry.NewRetrier(5, 100*time.Millisecond, 5*time.Second)
 	err = retrier.Run(func() error {
