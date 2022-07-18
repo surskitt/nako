@@ -92,7 +92,7 @@ func genJoinHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 	}
 }
 
-func genDebugHandler(channel string, global bool, g *gocui.Gui) func(event *irc.Event) {
+func genVerboseHandler(channel string, global bool, g *gocui.Gui) func(event *irc.Event) {
 	return func(event *irc.Event) {
 		if event.Arguments[0] == channel || global {
 			showMsg("", fmt.Sprintf("Code: %s", event.Code), g)
@@ -249,7 +249,7 @@ func main() {
 	}
 
 	if opts.Verbose || opts.GlobalVerbose {
-		irccon.AddCallback("*", genDebugHandler(opts.Channels[0], opts.GlobalVerbose, g))
+		irccon.AddCallback("*", genVerboseHandler(opts.Channels[0], opts.GlobalVerbose, g))
 	}
 
 	retrier := retry.NewRetrier(5, 100*time.Millisecond, 5*time.Second)
