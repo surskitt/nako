@@ -36,6 +36,17 @@ func getTime() string {
 	return aurora.Bold(ft).String()
 }
 
+func nickColor(nick, msg string) string {
+	ids := []uint8{1, 2, 3, 4, 5, 6}
+
+	sum := 0
+	for _, c := range nick {
+		sum += int(c)
+	}
+
+	return aurora.Index(ids[sum%5], msg).String()
+}
+
 func showMsg(nick, msg string, g *gocui.Gui) {
 	g.Update(func(g *gocui.Gui) error {
 		v, err := g.View("chat")
@@ -43,7 +54,7 @@ func showMsg(nick, msg string, g *gocui.Gui) {
 			return err
 		}
 
-		fmt.Fprintln(v, getTime(), msg)
+		fmt.Fprintln(v, getTime(), nickColor(nick, msg))
 
 		return nil
 	})
