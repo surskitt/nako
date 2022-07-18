@@ -217,6 +217,18 @@ func main() {
 	g.SetManagerFunc(genLayout(opts.Channels[0]))
 
 	irccon := irc.IRC(opts.Nick, opts.User)
+
+	g.Update(func(g *gocui.Gui) error {
+		v, err := g.View("chat")
+		if err != nil {
+			return err
+		}
+
+		irccon.Log.SetOutput(v)
+
+		return nil
+	})
+
 	irccon.Debug = opts.Debug
 
 	irccon.UseTLS = opts.UseTLS
