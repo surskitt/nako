@@ -129,7 +129,7 @@ func genLayout(channel string) func(g *gocui.Gui) error {
 			v.Frame = false
 			v.FgColor = gocui.ColorGreen
 
-			fmt.Fprint(v, channel+">")
+			fmt.Fprint(v, channel+":")
 		}
 
 		if v, err := g.SetView("entry", len(channel)+2, maxY-2, maxX, maxY, gocui.TOP); err != nil {
@@ -186,16 +186,7 @@ func genSendMsg(c *irc.Connection, nick, channel string) func(g *gocui.Gui, v *g
 		c.Privmsg(channel, msg)
 		v.Clear()
 
-		g.Update(func(g *gocui.Gui) error {
-			v, err := g.View("chat")
-			if err != nil {
-				return err
-			}
-
-			fmt.Fprintln(v, fmt.Sprintf("%s %s: %s", getTime(), nick, msg))
-
-			return nil
-		})
+		showPrivMsg(c.GetNick(), msg, g)
 
 		return nil
 	}
