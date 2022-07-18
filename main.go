@@ -146,6 +146,8 @@ func genLayout(channel string) func(g *gocui.Gui) error {
 			if _, err := g.SetCurrentView("entry"); err != nil {
 				return err
 			}
+
+			g.Cursor = true
 		}
 
 		return nil
@@ -156,14 +158,24 @@ func quit(g *gocui.Gui, v *gocui.View) error {
 	return gocui.ErrQuit
 }
 
-func genSwitch(view string) func(g *gocui.Gui, v *gocui.View) error {
-	return func(g *gocui.Gui, v *gocui.View) error {
-		if _, err := g.SetCurrentView(view); err != nil {
-			return err
-		}
-
-		return nil
+func entrySwitch(g *gocui.Gui, v *gocui.View) error {
+	if _, err := g.SetCurrentView("entry"); err != nil {
+		return err
 	}
+
+	g.Cursor = true
+
+	return nil
+}
+
+func chatSwitch(g *gocui.Gui, v *gocui.View) error {
+	if _, err := g.SetCurrentView("chat"); err != nil {
+		return err
+	}
+
+	g.Cursor = false
+
+	return nil
 }
 
 func genSendMsg(c *irc.Connection, nick, channel string) func(g *gocui.Gui, v *gocui.View) error {
@@ -257,11 +269,11 @@ func main() {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("chat", gocui.KeyTab, gocui.ModNone, genSwitch("entry")); err != nil {
+	if err := g.SetKeybinding("chat", gocui.KeyTab, gocui.ModNone, entrySwitch); err != nil {
 		log.Panicln(err)
 	}
 
-	if err := g.SetKeybinding("entry", gocui.KeyTab, gocui.ModNone, genSwitch("chat")); err != nil {
+	if err := g.SetKeybinding("entry", gocui.KeyTab, gocui.ModNone, chatSwitch); err != nil {
 		log.Panicln(err)
 	}
 
