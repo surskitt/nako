@@ -13,48 +13,67 @@ import (
 	irc "github.com/thoj/go-ircevent"
 
 	"github.com/awesome-gocui/gocui"
+	"github.com/logrusorgru/aurora"
 )
 
 type Options struct {
-	Server    string   `short:"s" long:"server" env:"NAKO_SERVER" required:"true" description:"IRC server:port"`
-	Nick      string   `short:"n" long:"nick" env:"NAKO_NICK" required:"true" description:"IRC nick"`
-	User      string   `short:"u" long:"user" env:"NAKO_USER" required:"true" description:"IRC user"`
-	Password  string   `short:"p" long:"password" env:"NAKO_PASSWORD" description:"IRC password"`
-	Channels  []string `short:"c" long:"channels" env:"NAKO_CHANNELS" env-delim:"," required:"true" description:"Channels to join"`
-	UseTLS    bool     `short:"T" long:"tls" env:"NAKO_TLS" description:"Connect to irc using tls"`
-	Verbose   bool     `short:"v" long:"verbose" env:"NAKO_VERBOSE" description:"Verbose logging"`
-	Debug     bool     `short:"d" long:"debug" env:"NAKO_DEBUG" description:"Debug logging"`
-	ShowJoins bool     `short:"j" long:"show-joins" env:"NAKO_SHOW_JOINS" description:"Show join and part messages"`
+	Server        string   `short:"s" long:"server" env:"NAKO_SERVER" required:"true" description:"IRC server:port"`
+	Nick          string   `short:"n" long:"nick" env:"NAKO_NICK" required:"true" description:"IRC nick"`
+	User          string   `short:"u" long:"user" env:"NAKO_USER" required:"true" description:"IRC user"`
+	Password      string   `short:"p" long:"password" env:"NAKO_PASSWORD" description:"IRC password"`
+	Channels      []string `short:"c" long:"channels" env:"NAKO_CHANNELS" env-delim:"," required:"true" description:"Channels to join"`
+	UseTLS        bool     `short:"T" long:"tls" env:"NAKO_TLS" description:"Connect to irc using tls"`
+	Verbose       bool     `short:"v" long:"verbose" env:"NAKO_VERBOSE" description:"Verbose logging"`
+	GlobalVerbose bool     `short:"V" long:"global-verbose" env:"NAKO_GLOBAL_VERBOSE" description:"Verbose logging across server"`
+	Debug         bool     `short:"d" long:"debug" env:"NAKO_DEBUG" description:"Debug logging"`
+	ShowJoins     bool     `short:"j" long:"show-joins" env:"NAKO_SHOW_JOINS" description:"Show join and part messages"`
 }
 
 func getTime() string {
 	t := time.Now()
 	ft := t.Format("15:04")
 
-	return fmt.Sprintf("\x1b[1;30m%s\x1b[0m", ft)
+	return aurora.Bold(ft).String()
+}
+
+func showMsg(nick, msg string, g *gocui.Gui) {
+	g.Update(func(g *gocui.Gui) error {
+		v, err := g.View("chat")
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintln(v, getTime(), msg)
+
+		return nil
+	})
+}
+
+func showPrivMsg(nick, msg string, g *gocui.Gui) {
+	out := fmt.Sprintf("%s: %s", nick, msg)
+	showMsg(nick, out, g)
+}
+
+func showJoinMsg(nick, channel string, g *gocui.Gui) {
+	out := fmt.Sprintf("-> %s joined %s", nick, channel)
+	showMsg(nick, out, g)
+}
+
+func showPartMsg(nick, channel string, g *gocui.Gui) {
+	out := fmt.Sprintf("<- %s left %s", nick, channel)
+	showMsg(nick, out, g)
 }
 
 func genMsgHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 	return func(event *irc.Event) {
-		go func(event *irc.Event) {
-			if event.Arguments[0] == channel {
-				g.Update(func(g *gocui.Gui) error {
-					v, err := g.View("chat")
-					if err != nil {
-						return err
-					}
-
-					nick := event.Nick
-					if nick == "" {
-						nick = event.Source
-					}
-
-					fmt.Fprintln(v, fmt.Sprintf("%s %s: %s", getTime(), nick, event.Arguments[1]))
-
-					return nil
-				})
+		if event.Arguments[0] == channel {
+			nick := event.Nick
+			if nick == "" {
+				nick = event.Source
 			}
-		}(event)
+
+			showPrivMsg(nick, event.Arguments[1], g)
+		}
 	}
 }
 
@@ -62,50 +81,29 @@ func genJoinHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
 	return func(event *irc.Event) {
 		go func(event *irc.Event) {
 			if event.Arguments[0] == channel {
-				g.Update(func(g *gocui.Gui) error {
-					v, err := g.View("chat")
-					if err != nil {
-						return err
-					}
-
-					switch event.Code {
-					case "JOIN":
-						fmt.Fprintln(v, fmt.Sprintf("%s -> %s joined %s", getTime(), event.Nick, event.Arguments[0]))
-					case "QUIT":
-						fmt.Fprintln(v, fmt.Sprintf("%s <- %s left %s", getTime(), event.Nick, event.Arguments[0]))
-					}
-
-					return nil
-				})
+				switch event.Code {
+				case "JOIN":
+					showJoinMsg(event.Nick, event.Arguments[0], g)
+				case "QUIT":
+					showPartMsg(event.Nick, event.Arguments[0], g)
+				}
 			}
 		}(event)
 	}
 }
 
-func genDebugHandler(channel string, g *gocui.Gui) func(event *irc.Event) {
+func genDebugHandler(channel string, global bool, g *gocui.Gui) func(event *irc.Event) {
 	return func(event *irc.Event) {
-		go func(event *irc.Event) {
-			// if event.Arguments[0] == channel {
-			if true {
-				g.Update(func(g *gocui.Gui) error {
-					v, err := g.View("chat")
-					if err != nil {
-						return err
-					}
-
-					fmt.Fprintln(v, fmt.Sprintf("%s Code: %s", getTime(), event.Code))
-					fmt.Fprintln(v, fmt.Sprintf("%s Raw: %s", getTime(), event.Raw))
-					fmt.Fprintln(v, fmt.Sprintf("%s Nick: %s", getTime(), event.Nick))
-					fmt.Fprintln(v, fmt.Sprintf("%s Host: %s", getTime(), event.Host))
-					fmt.Fprintln(v, fmt.Sprintf("%s Source: %s", getTime(), event.Source))
-					fmt.Fprintln(v, fmt.Sprintf("%s User: %s", getTime(), event.User))
-					fmt.Fprintln(v, fmt.Sprintf("%s Tags: %s", getTime(), event.Tags))
-					fmt.Fprintln(v, fmt.Sprintf("%s Arguments: %s", getTime(), event.Arguments))
-
-					return nil
-				})
-			}
-		}(event)
+		if event.Arguments[0] == channel || global {
+			showMsg("", fmt.Sprintf("Code: %s", event.Code), g)
+			showMsg("", fmt.Sprintf("Raw: %s", event.Raw), g)
+			showMsg("", fmt.Sprintf("Nick: %s", event.Nick), g)
+			showMsg("", fmt.Sprintf("Host: %s", event.Host), g)
+			showMsg("", fmt.Sprintf("Source: %s", event.Source), g)
+			showMsg("", fmt.Sprintf("User: %s", event.User), g)
+			showMsg("", fmt.Sprintf("Tags: %s", event.Tags), g)
+			showMsg("", fmt.Sprintf("Arguments: %s", event.Arguments), g)
+		}
 	}
 }
 
@@ -247,8 +245,8 @@ func main() {
 		irccon.AddCallback("PART", genJoinHandler(opts.Channels[0], g))
 	}
 
-	if opts.Verbose {
-		irccon.AddCallback("*", genDebugHandler(opts.Channels[0], g))
+	if opts.Verbose || opts.GlobalVerbose {
+		irccon.AddCallback("*", genDebugHandler(opts.Channels[0], opts.GlobalVerbose, g))
 	}
 
 	retrier := retry.NewRetrier(5, 100*time.Millisecond, 5*time.Second)
