@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -27,7 +29,10 @@ type Options struct {
 	GlobalVerbose bool     `short:"V" long:"global-verbose" env:"NAKO_GLOBAL_VERBOSE" description:"Verbose logging across server"`
 	Debug         bool     `short:"d" long:"debug" env:"NAKO_DEBUG" description:"Debug logging"`
 	ShowJoins     bool     `short:"j" long:"show-joins" env:"NAKO_SHOW_JOINS" description:"Show join and part messages"`
+	ColourSeed    int      `short:"x" long:"color-seed" env:"NAKO_COLOUR_SEED" description:"Modify nick colours using seed"`
 }
+
+var colourSeed = 0
 
 func getTime() string {
 	t := time.Now()
@@ -37,14 +42,15 @@ func getTime() string {
 }
 
 func nickColor(nick, msg string) string {
-	ids := []uint8{1, 2, 3, 4, 5, 6}
-
 	sum := 0
 	for _, c := range nick {
 		sum += int(c)
 	}
 
-	return aurora.Index(ids[sum%5], msg).String()
+	rand.Seed(int64(colourSeed + sum))
+	id := rand.Intn(6) + 1
+
+	return aurora.Index(uint8(id), msg).String()
 }
 
 func showMsg(nick, msg string, g *gocui.Gui) {
@@ -212,8 +218,10 @@ func main() {
 	opts := Options{}
 	_, err := flags.Parse(&opts)
 	if err != nil {
-		log.Fatal(err)
+		os.Exit(1)
 	}
+
+	colourSeed = opts.ColourSeed
 
 	g, err := gocui.NewGui(gocui.OutputNormal, true)
 	if err != nil {
